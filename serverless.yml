@@ -11,7 +11,7 @@
 #
 # Happy Coding!
 
-service: goservice-curd # NOTE: update this with your service name
+service: goservice-facecollection # NOTE: update this with your service name
 
 # You can pin your service to only deploy with a specific Serverless version
 # Check out our docs for more details
@@ -23,7 +23,22 @@ provider:
   runtime: go1.x
   region: ap-southeast-1
   environment: 
-    RDS_CONN_STRING: postgres://<username>:<password>@<db url>
+    COLLECTION_ID: viblo
+    FACES_BUCKET: viblo-facecollection
+  iam:
+    role:
+      statements:
+        # Allow functions to have full access to AWS Rekognition (not for production)
+        - Effect: Allow
+          Action: 'rekognition:*'
+          Resource: '*'
+        # Allow functions to hve full access to AWS S3 and DynamoDB (not for production)
+        - Effect: Allow
+          Action:
+            - 's3:*'
+            - 'dynamodb:*'
+          Resource:
+            - '*'
 
 plugins:
   - serverless-add-api-key
@@ -31,9 +46,9 @@ plugins:
 custom:
   apiKeys:
     dev:
-    - name: baitap2
+    - name: facecollection
       usagePlan:
-        name: "baitap2" 
+        name: "facecollection" 
         description: "Description of first plan"
         quota:
           limit: 100000
@@ -89,46 +104,27 @@ functions:
   #           parameter:
   #             paths:
   #               name: true 
-  postinsert:
-    handler: bin/postInsert
+  postindex:
+    handler: bin/postIndex
     package:
       include:
-        - ./bin/postInsert
+        - ./bin/postIndex
     events:
       - http:
-          path: insert
+          path: index
           method: post
           private: true
-  postupdate:
-    handler: bin/postUpdate
+  postsearch:
+    handler: bin/postSearch
     package:
       include:
-        - ./bin/postUpdate
+        - ./bin/postSearch
     events:
       - http:
-          path: update
+          path: search
           method: post      
           private: true
-  postdelete:
-    handler: bin/postDelete
-    package:
-      include:
-        - ./bin/postDelete
-    events:
-      - http:
-          path: delete
-          method: post          
-          private: true
-  postgetusers:
-    handler: bin/postGetUsers
-    package:
-      include:
-        - ./bin/postGetUsers
-    events:
-      - http:
-          path: getusers
-          method: post          
-          private: true        
+   
 
 
 #    The following are a few example events you can configure

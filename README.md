@@ -17,6 +17,11 @@ This example is using AWS Request and Response Proxy Model, provided by AWS itse
 If you want to test any changes don't forget to run `make` inside the service directory.
  
 
+Run this to create rekognition collection 
+```
+aws rekognition create-collection --collection-id "viblo"
+```
+
 # API Specs
 - Viết 4 api, gọi vào database postgres
   - craete user
