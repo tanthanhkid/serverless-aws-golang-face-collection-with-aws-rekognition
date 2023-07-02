@@ -23,8 +23,8 @@ provider:
   runtime: go1.x
   region: ap-southeast-1
   environment: 
-    COLLECTION_ID: viblo
-    FACES_BUCKET: viblo-facecollection
+    COLLECTION_ID: viblo  # put your AWS Rekognition collection name here
+    FACES_BUCKET: viblo-facecollection # put your S3 bucket for storing image here
   iam:
     role:
       statements:
@@ -35,8 +35,7 @@ provider:
         # Allow functions to hve full access to AWS S3 and DynamoDB (not for production)
         - Effect: Allow
           Action:
-            - 's3:*'
-            - 'dynamodb:*'
+            - 's3:*' 
           Resource:
             - '*'
 
