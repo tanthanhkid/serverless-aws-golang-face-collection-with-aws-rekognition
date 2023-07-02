@@ -181,6 +181,7 @@ func indexFace(userName string, image string) (*rekognition.IndexFacesOutput, er
 }
 
 func createSession() (*session.Session, error) {
+	//TODO: refactor create sesssion step
 	sess, err := session.NewSession(&aws.Config{
 		Region: aws.String(os.Getenv("AWS_REGION"))},
 	)
