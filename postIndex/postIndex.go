@@ -1,13 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
 	"log"
 	"os"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -70,8 +70,7 @@ func Handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 
 	}
 
-	logger = log.New(os.Stderr, "", log.LstdFlags)
-	logger.SetPrefix("[requestId:" + bodyRequest.RequestId + "]")
+	logger.SetPrefix("[Request ID:" + bodyRequest.RequestId + "] - ")
 
 	//verify datetime format RFC3339
 	parsedTime, err := time.Parse(time.RFC3339, bodyRequest.RequestTime)
@@ -83,8 +82,7 @@ func Handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		return events.APIGatewayProxyResponse{Body: "User object can not be null", StatusCode: 401}, nil
 	}
 
-	// insert to database
-
+	// call AWS Rekognition to index face
 	output, err := indexFace(bodyRequest.Data.UserName, bodyRequest.Data.Image)
 
 	responseCode := "06"
@@ -118,7 +116,7 @@ func Handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 }
 
 func main() {
-
+	logger = log.New(os.Stderr, "", log.LstdFlags)
 	lambda.Start(Handler)
 }
 
@@ -135,15 +133,20 @@ func indexFace(userName string, image string) (*rekognition.IndexFacesOutput, er
 
 	client := rekognition.NewFromConfig(cfg)
 
-	//TODO: parse image from base 64 and upload to S3 bucket
-	imageData := make([]byte, base64.StdEncoding.EncodedLen(len(image)))
-	base64.StdEncoding.Encode(imageData, []byte(image))
+	//parse image from base 64 and upload to S3 bucket
+	decodedSignature, err := base64.StdEncoding.DecodeString(image)
+	if err != nil {
+		log.Fatalf("decode base64 failed, %v", err)
+	}
+	r := bytes.NewReader(decodedSignature)
 
 	//create s3 input
+	s3ObjectName := userName + ".jpg"
+
 	s3Input := &s3.PutObjectInput{
-		Body:   strings.NewReader(image),
+		Body:   r,
 		Bucket: &facesBucket,
-		Key:    &userName,
+		Key:    &s3ObjectName,
 	}
 
 	//create new session
@@ -153,18 +156,21 @@ func indexFace(userName string, image string) (*rekognition.IndexFacesOutput, er
 	}
 	s3 := s3.New(sess)
 
+	//upload image file to s3
 	s3output, err := s3.PutObject(s3Input)
 
-	if err != nil || s3output != nil {
-		log.Fatalf("failed to create AWS session, %v, s3 err ouput %v", err, s3output)
+	logger.Printf("S3 output message: %v", s3output)
+
+	if err != nil {
+		log.Fatalf("failed to put object, %v", err)
 	}
 
-	//TODO: get image from S3 bucket and index with rekognition
+	//get image from S3 bucket and index with rekognition
 	input := &rekognition.IndexFacesInput{
 		Image: &types.Image{
 			S3Object: &types.S3Object{
 				Bucket: &facesBucket,
-				Name:   &userName,
+				Name:   &s3ObjectName,
 			},
 		},
 		CollectionId:    &collectionId,
@@ -181,7 +187,7 @@ func indexFace(userName string, image string) (*rekognition.IndexFacesOutput, er
 }
 
 func createSession() (*session.Session, error) {
-	//TODO: refactor create sesssion step
+	// create sesssion step
 	sess, err := session.NewSession(&aws.Config{
 		Region: aws.String(os.Getenv("AWS_REGION"))},
 	)

@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"log"
 	"os"
@@ -10,6 +12,9 @@ import (
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/google/uuid"
 
 	_ "github.com/lib/pq"
@@ -112,6 +117,7 @@ func main() {
 func searchface(image string) (*rekognition.SearchFacesByImageOutput, error) {
 
 	collectionId := os.Getenv("COLLECTION_ID")
+	facesBucket := os.Getenv("FACES_BUCKET")
 
 	// Load the SDK's configuration from environment and shared config, and
 	// create the client with this.
@@ -120,11 +126,46 @@ func searchface(image string) (*rekognition.SearchFacesByImageOutput, error) {
 		logger.Fatalf("failed to load SDK configuration, %v", err)
 	}
 
+	//parse image from base 64 and upload to S3 bucket
+	decodedSignature, err := base64.StdEncoding.DecodeString(image)
+	if err != nil {
+		log.Fatalf("decode base64 failed, %v", err)
+	}
+	r := bytes.NewReader(decodedSignature)
+
+	//create s3 input
+	s3ObjectName := uuid.NewString() + ".jpg"
+
+	s3Input := &s3.PutObjectInput{
+		Body:   r,
+		Bucket: &facesBucket,
+		Key:    &s3ObjectName,
+	}
+
+	//create new session
+	sess, err := createSession()
+	if err != nil {
+		log.Fatalf("failed to create AWS session, %v", err)
+	}
+	s3 := s3.New(sess)
+
+	//upload image file to s3
+	s3output, err := s3.PutObject(s3Input)
+
+	logger.Printf("S3 output message: %v", s3output)
+
+	if err != nil {
+		log.Fatalf("failed to put object, %v", err)
+	}
+
 	client := rekognition.NewFromConfig(cfg)
 
 	input := &rekognition.SearchFacesByImageInput{
 		Image: &types.Image{
-			Bytes: []byte(image),
+			S3Object: &types.S3Object{
+				Bucket: &facesBucket,
+				Name:   &s3ObjectName,
+			},
 		},
 		CollectionId: &collectionId,
 	}
@@ -137,4 +178,12 @@ func searchface(image string) (*rekognition.SearchFacesByImageOutput, error) {
 
 	return output, err
 
+}
+
+func createSession() (*session.Session, error) {
+	// create sesssion step
+	sess, err := session.NewSession(&aws.Config{
+		Region: aws.String(os.Getenv("AWS_REGION"))},
+	)
+	return sess, err
 }
