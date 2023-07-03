@@ -15,31 +15,25 @@ This example is using AWS Request and Response Proxy Model, provided by AWS itse
 If you want to test any changes don't forget to run `make` inside the service directory.
  
 
-Run this to create rekognition collection 
+Run this to create rekognition collection, if you change the name of the collection, make sure to change in serverless.yml file at line 26
 ```
 aws rekognition create-collection --collection-id "viblo"
 ```
 
-# API Specs
-- Viết 4 api, gọi vào database postgres
-  - craete user
-  - update user
-  - delete user by username
-  - get user list by username
-
-- Script create table user
-```sql
-CREATE TABLE "users" (
-    "id" bigserial,
-    username character varying(50) COLLATE pg_catalog."default",
-    name character varying(50) COLLATE pg_catalog."default" NOT NULL,
-    phone character varying(50) COLLATE pg_catalog."default",
-    PRIMARY KEY ("id")
-);
+Run this to create S3 bucket to store yours images, if you change the name of the bucket, make sure to change in serverless.yml file at line 27
+```
+aws s3api create-bucket \
+    --bucket viblo-facecollection \
+    --region ap-southeast-1
 ```
 
-### API Insert
-- create user với username, name, phone. Phải check username tồn tại duy nhất trong table, không sử dụng unique của database
+# API Specs
+- Viết 4 api 
+  - index face: add face to collection
+  - search face: search by image
+
+### API Index
+ 
 - input:
 ```
 {
@@ -47,8 +41,7 @@ CREATE TABLE "users" (
     "requestTime": {{timeRPC3339}},
     "data": {
         "username": {{string}},
-        "name": {{string}},
-        "phone": {{string}}
+        "image": {{string}}, //base64 encoded image
     }
 }
 ```
@@ -62,17 +55,15 @@ CREATE TABLE "users" (
 }
 ```
 
-### API Update
-- update user by username. Thông tin update là name và phone.
+### API Search
+ 
 - input:
 ```
 {
     "requestId": {{uuid}},
     "requestTime": {{timeRPC3339}},
     "data": {
-        "username": {{string}},
-        "name": {{string}},
-        "phone": {{string}}
+        "image": {{string}}, //base64 encoded image
     }
 }
 ```
@@ -84,56 +75,7 @@ CREATE TABLE "users" (
     "responseTime": {{timeRPC3339}},
     "responseCode": {{string}},
     "responseMessage": {{string}},
+    "data": [] //faces matches array
 }
 ```
-
-### API Delete
-- delete user by username
-- input:
-```
-{
-    "requestId": {{uuid}},
-    "requestTime": {{timeRPC3339}},
-    "data": {
-        "username": {{string}}
-    }
-}
-```
-
-- output:
-```
-{
-    "responseId": {{requestId}},
-    "responseTime": {{timeRPC3339}},
-    "responseCode": {{string}},
-    "responseMessage": {{string}},
-}
-```
-
-### API Get list
-- get list by username
-- input:
-```
-{
-    "requestId": {{uuid}},
-    "requestTime": {{timeRPC3339}},
-    "data": {
-        "username": {{string}}
-    }
-}
-```
-
-- output:
-```
-{
-    "responseId": {{uuid}},
-    "responseTime": {{timeRPC3339}},
-    "responseCode": {{string}},
-    "responseMessage": {{string}},
-    "data": {
-        "username": {{string}},
-        "name": {{string}},
-        "phone": {{string}}
-    }
-}
-```
+ 
