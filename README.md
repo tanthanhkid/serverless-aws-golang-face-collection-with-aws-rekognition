@@ -23,7 +23,7 @@ aws rekognition create-collection --collection-id "viblo"
 Run this to create S3 bucket to store yours images, if you change the name of the bucket, make sure to change in serverless.yml file at line 27
 ```
 aws s3api create-bucket \
-    --bucket viblo-facecollection \
+    --bucket viblo-facecollection \ 
     --region ap-southeast-1
 ```
 
