@@ -28,7 +28,7 @@ aws s3api create-bucket \
 ```
 
 # API Specs
-- Viết 4 api 
+- Viết 2 api 
   - index face: add face to collection
   - search face: search by image
 
